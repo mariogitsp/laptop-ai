@@ -1,2 +1,17 @@
+# Environment
 .env
 .env.*
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Generated data (recreated by running pipeline)
+chroma/
+data/
+analysis/*.json
+
+# Keep the analysis module, ignore output files
+!analysis/__init__.py
+!analysis/llm_analyzer.py
