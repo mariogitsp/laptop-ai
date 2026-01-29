@@ -1,10 +1,15 @@
 import chromadb
 from chromadb.utils import embedding_functions
-import google.generativeai as genai
+from google import genai
 import json
 import os
+import sys
 from dotenv import load_dotenv
 from typing import Dict, List
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from utils import get_analysis_output_path, laptop_name_to_slug
 
 # Load environment variables
 load_dotenv()
@@ -23,15 +28,26 @@ class LaptopAnalyzer:
         if not api_key:
             raise ValueError("GEMINI_API_KEY not found in environment variables")
         
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        self.client_gemini = genai.Client(api_key=api_key)
+        self.model_name = "gemini-2.5-flash"
+
         
         # Initialize ChromaDB client
-        self.client = chromadb.Client(
-            chromadb.config.Settings(
-                persist_directory="./chroma"
-            )
-        )
+        # self.client = chromadb.Client(
+        #     chromadb.config.Settings(
+        #         persist_directory="./chroma"
+        #     )
+        # )
+
+        # Initialize ChromaDB client (MUST match storage)
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(script_dir)
+        chroma_dir = os.path.join(project_root, "chroma")
+
+        print(f"Using ChromaDB directory: {chroma_dir}")
+
+        self.client = chromadb.PersistentClient(path=chroma_dir)
+
         
         # Set up embedding function
         self.embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
@@ -135,8 +151,10 @@ IMPORTANT:
         print(f"✓ Sending analysis request to Gemini for: {laptop_name}")
         
         # Get response from Gemini
-        response = self.model.generate_content(prompt)
-        
+        response = self.client_gemini.models.generate_content(
+            model=self.model_name,
+            contents=prompt
+        )
         # Parse JSON response
         try:
             # Extract JSON from response (handle potential markdown formatting)
@@ -204,11 +222,24 @@ IMPORTANT:
         return analysis
 
 
-def save_analysis_to_file(analysis: Dict, output_path: str = "analysis_output.json"):
-    """Save analysis results to a JSON file."""
+def save_analysis_to_file(analysis: Dict, output_path: str | None = None):
+    """
+    Save analysis results to a JSON file.
+    
+    Args:
+        analysis: Analysis dictionary to save
+        output_path: Path to save to. If None, generates from laptop_name in analysis.
+    """
+    if output_path is None:
+        laptop_name = analysis.get("laptop_name", "unknown")
+        output_path = get_analysis_output_path(laptop_name)
+    
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(analysis, indent=2, fp=f)
-    print(f"✓ Analysis saved to: {output_path}")
+    print(f"Analysis saved to: {output_path}")
 
 
 def print_analysis_summary(analysis: Dict):
@@ -244,6 +275,8 @@ def print_analysis_summary(analysis: Dict):
 
 
 def main():
+
+
     """Main execution function."""
     
     try:
@@ -260,8 +293,8 @@ def main():
         # Display results
         print_analysis_summary(analysis)
         
-        # Save to file
-        save_analysis_to_file(analysis, f"analysis_{laptop_to_analyze.replace(' ', '_').lower()}.json")
+        # Save to file (auto-generates path based on laptop name)
+        save_analysis_to_file(analysis)
         
     except Exception as e:
         print(f"\n✗ Error during analysis: {e}")
