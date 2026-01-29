@@ -15,3 +15,8 @@ analysis/*.json
 # Keep the analysis module, ignore output files
 !analysis/__init__.py
 !analysis/llm_analyzer.py
+
+# Generated data
+knowledge/
+*.json
+*.csv
