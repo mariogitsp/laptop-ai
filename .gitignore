@@ -18,5 +18,8 @@ analysis/*.json
 
 # Generated data
 knowledge/
-*.json
-*.csv
+
+# Frontend
+laptop-battle-ui/node_modules/
+laptop-battle-ui/dist/
+laptop-battle-ui/.vite/
