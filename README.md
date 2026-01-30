@@ -1,412 +1,179 @@
-# laptop-ai
-# Reddit Scraping Attempts – Summary
+# LaptopAI – Analiza korisničkih recenzija laptopa pomoću AI-a
 
-## Goal
-Attempt to extract data from Reddit posts, preferably via the `.json` endpoint, using Python in Google Colab.
+LaptopAI automatski prikuplja Reddit recenzije laptopa, semantički ih pohranjuje i koristi AI za generiranje strukturiranih preporuka temeljenih na sentimentu korisnika.
 
 ---
 
-## Initial Approach: requests + `.json`
+## Problem
 
-### Method
-- Used Python `requests`
-- Added `User-Agent` and `Accept: application/json`
-- Attempted to access:
-https://www.reddit.com/r/.../.json
-https://old.reddit.com/r/.../.json
-
-
-
-### Result
-- All requests returned **HTTP 403**
-- Response body was HTML (block page), not JSON
-- `.json()` raised `JSONDecodeError`
-
-### Conclusion
-Reddit blocks unauthenticated access to `.json` endpoints, especially from cloud IPs (Google Colab).
+Kupnja laptopa je otežana zbog:
+- **Previše rasutih recenzija** – korisnici dijele iskustva na desetke subreddita
+- **Nemoguće usporedbe** – teško je usporediti iskustva različitih korisnika
+- **Gubljen vremena** – nitko ne želi čitati stotine postova i komentara
+- **Konfuzne informacije** – često su službene recenzije nedovoljne ili pristrane
 
 ---
 
-## Debugging Steps Taken
-- Printed status codes and response text
-- Checked for valid JSON before parsing
-- Added delays between requests
-- Switched to `old.reddit.com`
-- Verified headers were correct
+## Rješenje
 
-### Outcome
-No change — consistent 403 responses.
+LaptopAI rješava ovaj problem kroz automatizirani pipeline:
 
----
-
-## BeautifulSoup Evaluation
-
-### Findings
-- BeautifulSoup only parses HTML
-- Reddit pages are JavaScript-heavy
-- HTML scraping is fragile and unreliable
-
-### Conclusion
-BeautifulSoup is not suitable for Reddit scraping.
+1. **Prikupljanje** – pronalazi relevantne Reddit rasprave o laptopima
+2. **Pohranjivanje** – sprema ih u semantički pretraživu bazu znanja
+3. **Analiza** – koristi AI za ekstrakciju sentimenta, prednosti i nedostataka
+4. **Rezultat** – isporučuje čistu, strukturiranu preporuku i usporedbu
 
 ---
 
-## PRAW (Python Reddit API Wrapper)
+## Ključne funkcionalnosti
 
-### Method
-- Created Reddit app
-- Installed and configured PRAW
-- Attempted read-only access
-
-### Result
-- Reddit denied API access approval
-- PRAW unusable without authorization
+🔍 **Reddit scraping** – automatsko prikupljanje korisničkih recenzija  
+🧠 **Semantičko pretraživanje** – embeddinzi omogućuju pronalaženje relevantnih informacija  
+🤖 **AI analiza sentimenta** – Google Gemini ekstrahira pros/cons i ocjenjuje laptope  
+📊 **Strukturirani output** – JSON rezultati spremni za frontend  
+⚔️ **Laptop Battle UI** – web sučelje za usporedbu dva laptopa u realnom vremenu  
+📁 **Modularni dizajn** – nezavisni scraper, vector store i LLM slojevi  
 
 ---
 
-## Current Understanding
-
-- Reddit `.json` endpoints are:
-- Undocumented
-- Actively restricted
-- Not intended for public scraping
-
-- Reddit uses:
-- IP reputation
-- Cloudflare
-- Bot detection
-- OAuth enforcement
-
----
-
-## Alternative Technologies Considered
-
-### Selenium / Playwright
-- Can render Reddit pages
-- Can scrape visible HTML
-- Cannot access `.json` endpoints
-- May still be blocked by IP reputation
-
-### steel.dev
-- Provides hosted browser automation
-- Uses residential IPs
-- Useful for HTML scraping
-- Does NOT unlock Reddit JSON APIs
-
----
-
-## Final Conclusion
-
-There is no reliable, unauthenticated way to access Reddit `.json` endpoints in 2025+.
-
-Possible paths forward:
-- Use Playwright/Selenium to scrape rendered HTML
-- Use officially approved Reddit API access
-- Choose alternative platforms for scraping practice
-
-## Problems above fixed using vs code instead of google colab
-# Reddit subreddit scraping
-Using beautifulsoup and requests I am able to scrape the frontpage of subreddits from a hardcoded list.  
-
-
-## Scraping Strategy Update – Search-Based Reddit Scraping
-
-### Problem
-Scraping subreddit homepages does not return results for:
-- old laptop models (e.g. Lenovo Legion Y540)
-- low-activity topics
-- historical discussions
-
-### Root Cause
-Subreddit front pages only show:
-- hot
-- trending
-- recent posts
-
-Older content is not linked.
-
-### Solution
-Switch from:
-❌ Subreddit browsing  
-to  
-✅ Reddit search-based scraping
-
-### Approach
-1. Define search keywords (e.g. "lenovo legion y540")
-2. Generate Reddit search URLs
-3. Scrape post results instead of homepage content
-4. Extract:
-   - post title
-   - post URL
-   - subreddit
-   - scrape timestamp
-
-### Example Search URL
-https://www.reddit.com/r/LenovoLegion/search/?q=y540&restrict_sr=1
-
-### Benefits
-- Finds older posts
-- Higher relevance
-- Matches user-driven laptop search UX
-- Scales to any laptop model
-
-### Next Steps
-- Implement search-based scraper
-- Save results as Markdown
-- Embed into ChromaDB for LLM context
-
-
-User types laptop name
-↓
-Search-based Reddit scraping
-↓
-Structured results
-↓
-Markdown files
-↓
-ChromaDB
-↓
-LLM context
-
-
-
-## Reddit Search-Based Scraper
-
-### Motivation
-Scraping subreddit front pages does not surface:
-- old laptop models
-- niche issues
-- historical discussions
-
-### Solution
-Use Reddit’s global search pages to scrape posts based on keywords.
-
-### How It Works
-1. Define search queries (e.g. "lenovo legion y540")
-2. Generate Reddit search URLs
-3. Fetch search result pages
-4. Extract post titles and comment URLs
-5. Save results to JSON and CSV
-
-### Example Search URL
-
-https://www.reddit.com/search/?q=lenovo+legion+y540
-
-
-### Benefits
-- Finds old and rare posts
-- High relevance
-- User-input driven
-- Matches Laptop AI app flow
-
-### Limitations
-- Reddit is JS-heavy
-- Requests-based scraping may break
-- Playwright / Steel is the long-term solution
-
-
-
-
-## Bug Fix – Reddit Search Scraper Invalid URL
-
-### Problem
-Running the search-based Reddit scraper resulted in:
-
-
-### Root Cause
-`requests.get()` was mistakenly called with:
-- the raw search query string  
-instead of:
-- the constructed Reddit search URL
-
-### Fix
-Ensure `requests.get()` always receives the full URL:
-
-```python
-search_url = "https://www.reddit.com/search/?q=" + encoded_query
-requests.get(search_url)
-
-
-
-### Reddit link scraper --> reddit post scraper --> LLM 
-I have a pipeline that first scrapes/finds the relevant reddit posts, then a separate scraper gets data from that post, then i  
-
-[ Reddit Posts ]
-        |
-        v
-[ Scraper ]
-        |
-        v
-[ Structured Python dict ]
-        |
-        +--> [ Markdown Files (.md) ]  ← human / GitHub
-        |
-        +--> [ Embeddings ] → [ ChromaDB ] ← LLM context
-
-
-
-
-
-
-## Stage 3 — Knowledge Storage
-
-At this stage, the project transitions from raw data scraping to structured, persistent knowledge storage.
-
-### Goals
-- Convert scraped Reddit post content into human-readable Markdown files
-- Store semantic embeddings in ChromaDB for future LLM retrieval
-
----
-
-### Markdown Knowledge Base
-
-Each scraped Reddit post is converted into a `.md` file with metadata:
-
-- Source URL
-- Scrape timestamp
-- Clean post body text
-
-This allows:
-- Easy inspection and debugging
-- GitHub version control
-- Reuse across multiple stages (LLM, comparisons, frontend)
-
-Each post is saved as: knowledge/reddit/<post-title-slug>.md
-
-
----
-
-### ChromaDB Vector Storage
-
-To enable semantic search and LLM grounding, each Markdown document is embedded and stored in ChromaDB.
-
-ChromaDB runs locally and provides:
-- Vector similarity search
-- Persistent memory
-- Scalable context retrieval for LLM prompts
-
-Embeddings are generated using:
-- `sentence-transformers/all-MiniLM-L6-v2`
-
-Stored data includes:
-- Document text
-- Source metadata
-- Unique IDs based on file paths
-
----
-
-### Why ChromaDB?
-
-Using ChromaDB allows the application to:
-- Avoid sending all scraped text to the LLM
-- Retrieve only relevant knowledge per query
-- Reduce hallucinations
-- Scale to many laptops and comparisons
-
-This is a critical foundation for future features:
-- Pros/cons extraction
-- Laptop comparisons
-- YouTube transcript integration
-- Cached LLM outputs per comparison slug
-
----
-
-### Status
-✔ Reddit scraping complete  
-✔ Markdown knowledge generation complete  
-✔ Vector storage implemented  
-⬜ LLM summarization (next stage)  
-⬜ Frontend integration  
-
-
-
-
-
-User Query
-   |
-   v
-Reddit Search Scraper
-   |
-   v
-List of Post URLs
-   |
-   v
-Reddit Post Scraper
-   |
-   v
-Structured Dict
-   |
-   v
-Markdown Generator
-   |
-   v
-.md Knowledge Files
-   |
-   v
-ChromaDB Embeddings
-
-
-## Markdown Knowledge Generation
-
-This module converts scraped Reddit post data into persistent Markdown knowledge files.
-
-### Input
-A Python dictionary returned by the Reddit post scraper:
-```python
+## Primjer rezultata
+
+### Unos
+```
+Laptop 1: Lenovo Legion Y540
+Laptop 2: Dell XPS 15
+```
+
+### Izlaz
+```json
 {
-  "url": str,
-  "title": str,
-  "body": str,
-  "comments": list,
-  "scraped_at": str
+  "laptop_name": "Lenovo Legion Y540",
+  "sentiment_score": 78,
+  "pros": [
+    "Odličan omjer cijene i performansi",
+    "Dobro hlađenje uz RTX 2060",
+    "Kvalitetna tipkovnica"
+  ],
+  "cons": [
+    "Loša baterija (2-3 sata)",
+    "Osrednji ekran (sRGB ~60%)",
+    "Plastični build quality"
+  ],
+  "user_recommendation": "Preporučeno za gaming na budžetu, ali ne za profesionalnu upotrebu."
 }
-
-Output
-
-A Markdown file stored at:
-knowledge/reddit/<slugified-title>.md
-
-
-
-## Stage 3 — Vector Knowledge Storage (ChromaDB)
-
-Scraped Reddit content is converted into Markdown and embedded into a local ChromaDB vector store.
-
-### Purpose
-- Enable semantic search over scraped laptop knowledge
-- Provide grounded context for LLM analysis
-- Avoid hallucinations and token overload
-
-### Implementation
-- SentenceTransformer embeddings (`all-MiniLM-L6-v2`)
-- Persistent local storage (`./chroma`)
-- One document per Markdown file
-
-Stored data includes:
-- Vector embeddings
-- Original text
-- Source metadata
+```
 
 ---
 
-## Stage 4 — LLM Analysis (Completed)
+## Tehnologije
 
-### Description
-This stage uses Google Gemini to analyze Reddit knowledge stored in ChromaDB.
+**Backend**
+- Python 3.11+
+- FastAPI (REST API)
+- ChromaDB (vector baza podataka)
+- SentenceTransformers (embeddinzi)
+- Google Gemini API (LLM analiza)
 
-### Workflow
-1. Query ChromaDB for laptop-relevant Reddit content
-2. Provide retrieved context to Gemini
-3. Extract:
-   - Pros
-   - Cons
-   - Sentiment score (1–100)
+**Frontend**
+- React 18
+- Vite
+- TailwindCSS
+- Axios
 
-### Output
-Structured JSON suitable for:
-- Laptop comparison
-- Frontend rendering
-- Scoring logic
+**Scraping**
+- BeautifulSoup4
+- Requests
 
-This completes the AI reasoning layer of the project.
+---
 
+## Kako pokrenuti projekt
+
+### 1. Backend (FastAPI)
+
+```bash
+# Instalacija dependencies
+pip install -r requirements.txt
+
+# Pokretanje API servera
+python -m uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+API će biti dostupan na `http://localhost:8000`
+
+### 2. Frontend (React)
+
+```bash
+# Ulazak u frontend folder
+cd laptop-battle-ui
+
+# Instalacija dependencies
+npm install
+
+# Pokretanje development servera
+npm run dev
+```
+
+Frontend će biti dostupan na `http://localhost:5173`
+
+### 3. Pipeline (opcionalno – za scraping novih laptopa)
+
+```bash
+python pipeline.py
+```
+
+---
+
+## Primjer API poziva
+
+```bash
+POST http://localhost:8000/api/compare
+Content-Type: application/json
+
+{
+  "laptop1": "Lenovo Legion Y540",
+  "laptop2": "Dell XPS 15"
+}
+```
+
+**Odgovor:**
+```json
+{
+  "laptop1": { ... },
+  "laptop2": { ... },
+  "winner": "laptop1",
+  "comparison_summary": "Lenovo Legion Y540 pruža bolje gaming performanse uz nižu cijenu..."
+}
+```
+
+---
+
+## Status projekta
+
+✅ Reddit scraping pipeline  
+✅ ChromaDB vector storage  
+✅ LLM sentiment analiza  
+✅ FastAPI backend s caching sustavom  
+✅ React frontend s battle UI  
+✅ Usporedba dva laptopa  
+
+---
+
+## Budući razvoj
+
+🔮 **Više izvora podataka** – dodavanje YouTube transkripata, foruma, tech blogova  
+🔮 **Automatski scheduled scraping** – dnevno osvježavanje baze znanja  
+🔮 **Historijski tracking** – praćenje promjena sentimenta kroz vrijeme  
+🔮 **Napredne usporedbe** – više od 2 laptopa, performance grafovi  
+🔮 **Deployment** – Docker kontejnerizacija i hosting  
+
+---
+
+## Autori
+
+Projekt razvijen u sklopu kolegija **Završni projekt** na PMF-ST.
+
+---
+
+## Licenca
+
+MIT License
