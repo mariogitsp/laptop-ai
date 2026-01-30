@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 import uvicorn
 
-from compare import compare_laptops
+from .compare import compare_laptops
 
 app = FastAPI(
     title="Laptop Battle API",
